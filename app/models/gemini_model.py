@@ -1,13 +1,17 @@
 import os
 import google.generativeai as gemini
+from google import genai
 import logging
 from PIL import Image
 from io import BytesIO
+from google.genai import types
 
 # Initialize the Gemini API key and the model
-gemini.api_key = os.getenv("GEMINI_API_KEY")
-model_name = "gemini-1.5-flash"
+GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
+gemini.configure(api_key=GEMINI_KEY)
+model_name = "gemini-2.5-flash"
 model = gemini.GenerativeModel(model_name)
+client = genai.Client(api_key="AIzaSyApYf2DmEB8tOIrBSvfP_EhuqrF7v-jJ7o")
 
 
 class GeminiModel:
@@ -72,7 +76,8 @@ class GeminiModel:
             "}\n"
         )
         try:
-            response = model.generate_content(prompt)
+            
+            response = model.generate_content(model=model_name, contents=prompt)
 
             # Log the response for debugging purposes
             logging.info(f"Full Gemini API Response: {response}")
@@ -88,11 +93,14 @@ class GeminiModel:
 
     @staticmethod
     def generate_nutrition_plan(profile_data):
+        grounding_tool = types.Tool(google_search=types.GoogleSearch())
+
         prompt = (
             f"Provide a personalized nutrition plan for a {profile_data['age']} year old, "
             f"{profile_data['sex']}, weighing {profile_data['weight']}kg, height {profile_data['height']}cm, "
             f"with the goal of {profile_data['goal']}. The nutrition plan should include:\n\n"
             "- A daily calorie intake range.\n"
+            "- Focus in making the plan use sustainable Ingredients and products that are environmentally friendly. Make sure to mention local brands in the UAE and you can use tools to search for them\n"
             "- Macronutrient distribution in daily ranges in grams for protein, carbohydrates, and fat.\n"
             "- A meal plan with an appropriate number of meals. Breakfast, lunch, dinner, and snacks each should have 3 options.\n"
             "- Each meal option should include:\n"
@@ -113,7 +121,7 @@ class GeminiModel:
             "    \"breakfast\": [\n"
             "      {\"description\": \"<meal description>\", \"ingredients\": [\n"
             "        {\"ingredient\": \"<ingredient>\", \"quantity\": \"<quantity>\", \"calories\": <calories>}\n"
-            "      ], \"total_calories\": <calories>, \"recipe\": \"<short recipe>\"}, ...\n"
+            "      ], \"total_calories\": <calories>, \"recipe\": \"<short recipe>\"}, \"suggested_brands\": [\"<List of local UAE brand names, e.g., Al Ain Farms, Bayara>\"]\n"
             "    ],\n"
             "    \"lunch\": [ ... ],\n"
             "    \"dinner\": [ ... ],\n"
@@ -123,7 +131,15 @@ class GeminiModel:
         )
 
         try:
-            response = model.generate_content(prompt)
+            grounding_tool = types.Tool(
+            google_search=types.GoogleSearch())
+
+            # Configure generation settings
+            config = types.GenerateContentConfig(
+                tools=[grounding_tool]
+            )
+
+            response = client.models.generate_content(model=model_name, contents=prompt, config=config)
 
             # Log the response for debugging purposes
             logging.info(f"Full Gemini API Response: {response}")

@@ -37,6 +37,7 @@ class MealOption(BaseModel):
     ingredients: List[Ingredient]
     total_calories: int
     recipe: str
+    suggested_brands: List[str]
 
 
 class MealPlan(BaseModel):

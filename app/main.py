@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from app.routers import meals, workouts, nutrition
 
 # Load environment variables from .env file
-load_dotenv()
+load_dotenv('../.env')
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
