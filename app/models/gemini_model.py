@@ -11,7 +11,7 @@ GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 gemini.configure(api_key=GEMINI_KEY)
 model_name = "gemini-2.5-flash"
 model = gemini.GenerativeModel(model_name)
-client = genai.Client(api_key="AIzaSyApYf2DmEB8tOIrBSvfP_EhuqrF7v-jJ7o")
+client = genai.Client(api_key=GEMINI_KEY)
 
 
 class GeminiModel:
