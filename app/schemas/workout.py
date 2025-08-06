@@ -11,6 +11,7 @@ class ProfileData(BaseModel):
     sex: str
     goal: str  # bulking, shredding, fat loss, muscle building
     workouts_per_week: int
+    equipment: List[str] = []  # List of available equipment (e.g., dumbbells, barbell, resistance bands)
 
 
 class Exercise(BaseModel):

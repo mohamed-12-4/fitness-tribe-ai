@@ -96,6 +96,7 @@ class TestWorkoutService:
             sex="male",
             goal="bulking",
             workouts_per_week=3,
+            equipment=["dumbbells", "barbell", "resistance bands"],
         ).model_dump()
 
         # Send a POST request to the generate workout plans endpoint

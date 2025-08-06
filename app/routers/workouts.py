@@ -19,6 +19,7 @@ async def generate_workout_plan_endpoint(profile_data: ProfileData):
     - **height**: Height in centimeters
     - **age**: Age in years
     - **goal**: Fitness goal (e.g., bulking, shredding)
+    - **equipment**: List of available equipment (e.g., ["dumbbells", "barbell", "resistance bands"])
     """
     try:
         result = generate_workout_plan(profile_data)

@@ -5,8 +5,17 @@ import logging
 from PIL import Image
 from io import BytesIO
 from google.genai import types
-
+from dotenv import load_dotenv
 # Initialize the Gemini API key and the model
+load_dotenv()  # Try current directory first
+if not os.getenv("GEMINI_API_KEY"):
+    # Try relative path if current directory doesn't work
+    load_dotenv('../.env')
+if not os.getenv("GEMINI_API_KEY"):
+    # Try absolute path as last resort
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    load_dotenv(env_path)
+
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 gemini.configure(api_key=GEMINI_KEY)
 model_name = "gemini-2.5-flash"
@@ -47,10 +56,16 @@ class GeminiModel:
 
     @staticmethod
     def generate_workout_plan(profile_data):
+        # Build equipment part separately to avoid quote conflicts
+        equipment_part = ""
+        if profile_data.get('equipment'):
+            equipment_part = f"The user has the following available equipment: {', '.join(profile_data['equipment'])}. "
+
         prompt = (
             f"Create a workout plan for a {profile_data['age']} year old {profile_data['sex']}, "
             f"weighing {profile_data['weight']}kg and {profile_data['height']}cm tall, with the goal of {profile_data['goal']}. "
             f"The workout plan should include {profile_data['workouts_per_week']} sessions per week. "
+            f"{equipment_part}"
             "The workout plan should focus exclusively on safe, appropriate, and positive exercise recommendations. "
             "Avoid any mention of sensitive or controversial topics. Do not include any content related to sexuality, hate speech, violence, or other harmful themes. "
             "Respond in valid JSON format with no additional explanation or text. "
@@ -75,14 +90,21 @@ class GeminiModel:
             "  \"cooldown\": {\"description\": \"<description>\", \"duration\": <duration in minutes>}\n"
             "}\n"
         )
+        logging.info(f"Generated prompt: {prompt}")
         try:
-            
-            response = model.generate_content(model=model_name, contents=prompt)
+
+            response = model.generate_content(contents=prompt)
 
             # Log the response for debugging purposes
             logging.info(f"Full Gemini API Response: {response}")
 
             output_text = response.text
+            # Check if the response is empty or None
+            if not output_text or output_text.strip() == "":
+                logging.error("Empty response from Gemini API")
+                return None
+
+            logging.info(f"Gemini output text: {output_text}")
             return output_text
 
         except Exception as e:

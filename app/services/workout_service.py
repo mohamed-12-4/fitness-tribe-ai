@@ -25,13 +25,30 @@ def generate_workout_plan(profile_data: ProfileData) -> WorkoutPlan:
     try:
         model_response = GeminiModel.generate_workout_plan(profile_data.model_dump())
         if not model_response:
-            raise HTTPException(status_code=500, detail="No response from Gemini API")
+            logging.error("Gemini API returned None or empty response")
+            raise HTTPException(status_code=500, detail="Failed to generate workout plan. Please try again.")
+
+        # Log the raw response for debugging
+        logging.info(f"Raw Gemini response: {model_response}")
 
         # Clean the result_text to remove Markdown formatting and fix "rest" values
         clean_result_text = clean_response_text(model_response)
+        
+        # Log the cleaned response for debugging
+        logging.info(f"Cleaned response: {clean_result_text}")
+
+        # Check if the cleaned response is empty or whitespace
+        if not clean_result_text or clean_result_text.strip() == "":
+            logging.error("Cleaned response is empty")
+            raise HTTPException(status_code=500, detail="Failed to generate workout plan. Please try again.")
 
         # Parse the cleaned JSON response
-        result = json.loads(clean_result_text)
+        try:
+            result = json.loads(clean_result_text)
+        except json.JSONDecodeError as e:
+            logging.error(f"JSON decode error: {e}")
+            logging.error(f"Failed to parse: {clean_result_text}")
+            raise HTTPException(status_code=500, detail="Failed to generate workout plan. Please try again.")
 
         warmup_data = result.get("warmup")
         cardio_data = result.get("cardio")
