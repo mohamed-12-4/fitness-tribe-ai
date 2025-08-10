@@ -16,6 +16,7 @@ app = FastAPI(
     title="Fitness Tribe API",
     description="An AI-powered fitness application for coaches and athletes.",
     version="1.0.0",
+    
 )
 
 # Include routers for different endpoints
