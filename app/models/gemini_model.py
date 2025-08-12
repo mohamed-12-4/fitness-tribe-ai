@@ -6,6 +6,9 @@ from PIL import Image
 from io import BytesIO
 from google.genai import types
 from dotenv import load_dotenv
+import requests
+import json
+from typing import Dict, Optional
 # Initialize the Gemini API key and the model
 load_dotenv()  # Try current directory first
 if not os.getenv("GEMINI_API_KEY"):
@@ -25,13 +28,53 @@ client = genai.Client(api_key=GEMINI_KEY)
 
 class GeminiModel:
     @staticmethod
+    def search_food_info(food_name: str) -> Optional[Dict]:
+        """Search for food information using Open Food Facts API"""
+        try:
+            search_url = "https://world.openfoodfacts.org/cgi/search.pl"
+            params = {
+                'search_terms': food_name,
+                'search_simple': 1,
+                'action': 'process',
+                'json': 1,
+                'page_size': 5
+            }
+            
+            response = requests.get(search_url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            if data.get('products'):
+                for product in data['products']:
+                    if product.get('nutriments'):
+                        return {
+                            'product_name': product.get('product_name', ''),
+                            'calories_100g': product['nutriments'].get('energy-kcal_100g', 0),
+                            'protein_100g': product['nutriments'].get('proteins_100g', 0),
+                            'carbs_100g': product['nutriments'].get('carbohydrates_100g', 0),
+                            'fat_100g': product['nutriments'].get('fat_100g', 0),
+                            'fiber_100g': product['nutriments'].get('fiber_100g', 0),
+                            'ingredients': product.get('ingredients_text', ''),
+                            'nutrition_grade': product.get('nutrition_grades', ''),
+                            'brands': product.get('brands', ''),
+                        }
+            return None
+            
+        except Exception as e:
+            logging.error(f"Error searching Open Food Facts: {str(e)}")
+            return None
+
+    @staticmethod
     def analyze_meal(image_data):
         prompt = (
-            "Analyze the following meal image and provide the name of the food, "
-            "total calorie count, and calories per ingredient. "
+            "Analyze the following meal image and identify all visible food items. "
+            "For each food item, provide:\n"
+            "1. The name of the food item\n"
+            "2. Estimated portion size\n"
+            "3. Your best estimate of calories\n\n"
             "Respond in the following JSON format: "
-            '{ "food_name": "<food name>", "total_calories": <total calorie count>, '
-            '"calories_per_ingredient": {"<ingredient1>": <calories>, "<ingredient2>": <calories>, ...} }'
+            '{ "identified_foods": [{"name": "<food name>", "portion": "<estimated portion>", "estimated_calories": <calories>}], '
+            '"total_estimated_calories": <total>, "confidence_level": "<high/medium/low>" }'
         )
 
         try:
@@ -44,11 +87,34 @@ class GeminiModel:
             # Log the response for debugging purposes
             logging.info(f"Gemini API Full Response (Analyze Meal): {response}")
 
-            # Directly return the output text
-            output_text = response.text
-            logging.info(f"Output Text (Analyze Meal): {output_text}")
+            gemini_result = response.text
+            logging.info(f"Output Text (Analyze Meal): {gemini_result}")
 
-            return output_text
+            # Enhance with Open Food Facts data
+            try:
+                parsed_result = json.loads(gemini_result)
+                identified_foods = parsed_result.get('identified_foods', [])
+                
+                enhanced_foods = []
+                for food_item in identified_foods:
+                    food_name = food_item.get('name', '')
+                    nutrition_data = GeminiModel.search_food_info(food_name)
+                    
+                    enhanced_food = food_item.copy()
+                    if nutrition_data:
+                        enhanced_food['detailed_nutrition'] = nutrition_data
+                        if nutrition_data.get('calories_100g'):
+                            enhanced_food['verified_calories_per_100g'] = nutrition_data['calories_100g']
+                    
+                    enhanced_foods.append(enhanced_food)
+                
+                parsed_result['identified_foods'] = enhanced_foods
+                parsed_result['data_sources'] = ['Gemini Vision', 'Open Food Facts']
+                
+                return json.dumps(parsed_result)
+                
+            except json.JSONDecodeError:
+                return gemini_result
 
         except Exception as e:
             logging.error(f"Error communicating with Gemini API: {str(e)}")
@@ -115,23 +181,41 @@ class GeminiModel:
 
     @staticmethod
     def generate_nutrition_plan(profile_data):
-        grounding_tool = types.Tool(google_search=types.GoogleSearch())
+        # Extract dietary preferences and intolerances for the prompt
+        dietary_prefs = ""
+        if profile_data.get('dietary_preferences'):
+            dietary_prefs = f"Dietary preferences: {', '.join(profile_data['dietary_preferences'])}. "
+        
+        food_intolerance = ""
+        if profile_data.get('food_intolerance'):
+            food_intolerance = f"Food intolerances/allergies to avoid: {', '.join(profile_data['food_intolerance'])}. "
+
+        duration_days = profile_data.get('duration_days', 7)  # Default to 7 days
 
         prompt = (
-            f"Provide a personalized nutrition plan for a {profile_data['age']} year old, "
+            f"Create a personalized {duration_days}-day nutrition plan for a {profile_data['age']} year old "
             f"{profile_data['sex']}, weighing {profile_data['weight']}kg, height {profile_data['height']}cm, "
-            f"with the goal of {profile_data['goal']}. The nutrition plan should include:\n\n"
-            "- A daily calorie intake range.\n"
-            "- Focus in making the plan use sustainable Ingredients and products that are environmentally friendly. Make sure to mention local brands in the UAE and you can use tools to search for them\n"
-            "- Macronutrient distribution in daily ranges in grams for protein, carbohydrates, and fat.\n"
-            "- A meal plan with an appropriate number of meals. Breakfast, lunch, dinner, and snacks each should have 3 options.\n"
-            "- Each meal option should include:\n"
-            "  - A description.\n"
-            "  - Ingredients with quantities (grams, cups, tablespoons).\n"
-            "  - Calorie counts per ingredient and per meal.\n"
-            "  - A detailed recipe including step-by-step instructions and total cooking time.\n"
-            "- Ensure the response follows strict JSON format rules with no trailing commas, and all strings are properly quoted.\n\n"
-            "Respond in valid JSON format with no additional explanation or text.\n\n"
+            f"with the goal of {profile_data['goal']}. "
+            f"{dietary_prefs}{food_intolerance}"
+            f"Generate a unique meal plan for each of the {duration_days} days with varied meals to prevent monotony. "
+            "Each day should have different meals while maintaining nutritional balance. "
+            "Focus on sustainable ingredients and environmentally friendly products from UAE brands like "
+            "Al Ain Farms, Bayara, Kibsons, Organic Foods & Cafe, Lulu, Carrefour, Spinneys, etc.\n\n"
+            "For each day, provide:\n"
+            "- One breakfast option\n"
+            "- One lunch option\n"
+            "- One dinner option\n"
+            "- 1-2 snack options\n"
+            "- Calculate total daily calories and macronutrients\n\n"
+            "Each meal should include:\n"
+            "- A description\n"
+            "- Ingredients with quantities (grams, cups, tablespoons)\n"
+            "- Calorie counts per ingredient and per meal (as whole numbers, no decimals)\n"
+            "- A detailed recipe with cooking time\n"
+            "- UAE brand suggestions where applicable\n\n"
+            "Ensure variety across days - no meal should be repeated exactly.\n"
+            "All calorie values should be whole numbers (integers), not decimals.\n\n"
+            "Respond in valid JSON format with no additional explanation or text:\n\n"
             "{\n"
             "  \"daily_calories_range\": {\"min\": <min calories>, \"max\": <max calories>},\n"
             "  \"macronutrients_range\": {\n"
@@ -139,38 +223,38 @@ class GeminiModel:
             "    \"carbohydrates\": {\"min\": <min grams>, \"max\": <max grams>},\n"
             "    \"fat\": {\"min\": <min grams>, \"max\": <max grams>}\n"
             "  },\n"
-            "  \"meal_plan\": {\n"
-            "    \"breakfast\": [\n"
-            "      {\"description\": \"<meal description>\", \"ingredients\": [\n"
-            "        {\"ingredient\": \"<ingredient>\", \"quantity\": \"<quantity>\", \"calories\": <calories>}\n"
-            "      ], \"total_calories\": <calories>, \"recipe\": \"<short recipe>\"}, \"suggested_brands\": [\"<List of local UAE brand names, e.g., Al Ain Farms, Bayara>\"]\n"
-            "    ],\n"
-            "    \"lunch\": [ ... ],\n"
-            "    \"dinner\": [ ... ],\n"
-            "    \"snacks\": [ ... ]\n"
-            "  }\n"
+            "  \"daily_meal_plans\": [\n"
+            "    {\n"
+            "      \"day\": 1,\n"
+            "      \"date\": \"2025-08-12\",\n"
+            "      \"breakfast\": {\n"
+            "        \"description\": \"<meal description>\",\n"
+            "        \"ingredients\": [\n"
+            "          {\"ingredient\": \"<ingredient>\", \"quantity\": \"<quantity>\", \"calories\": <whole_number_calories>}\n"
+            "        ],\n"
+            "        \"total_calories\": <whole_number_calories>,\n"
+            "        \"recipe\": \"<detailed recipe with cooking time>\",\n"
+            "        \"suggested_brands\": [\"<UAE brands>\"]\n"
+            "      },\n"
+            "      \"lunch\": {\"description\": \"...\", \"ingredients\": [...], \"total_calories\": <whole_number_calories>, \"recipe\": \"...\", \"suggested_brands\": [...]},\n"
+            "      \"dinner\": {\"description\": \"...\", \"ingredients\": [...], \"total_calories\": <whole_number_calories>, \"recipe\": \"...\", \"suggested_brands\": [...]},\n"
+            "      \"snacks\": [\n"
+            "        {\"description\": \"...\", \"ingredients\": [...], \"total_calories\": <whole_number_calories>, \"recipe\": \"...\", \"suggested_brands\": [...]}\n"
+            "      ],\n"
+            "      \"total_daily_calories\": <whole_number_total>,\n"
+            "      \"daily_macros\": {\"protein\": <grams>, \"carbohydrates\": <grams>, \"fat\": <grams>}\n"
+            "    }\n"
+            f"    // Repeat for all {duration_days} days with different meals each day\n"
+            "  ],\n"
+            f"  \"total_days\": {duration_days}\n"
             "}"
         )
 
         try:
-            grounding_tool = types.Tool(
-            google_search=types.GoogleSearch())
-
-            # Configure generation settings
-            config = types.GenerateContentConfig(
-                tools=[grounding_tool]
-            )
-
-            response = client.models.generate_content(model=model_name, contents=prompt, config=config)
-
-            # Log the response for debugging purposes
+            response = model.generate_content(prompt)
             logging.info(f"Full Gemini API Response: {response}")
-            output_text = response.text
-
-            return output_text
+            return response.text
 
         except Exception as e:
-            logging.error(
-                f"Error communicating with Gemini API or while parsing the response: {str(e)}"
-            )
+            logging.error(f"Error generating nutrition plan: {str(e)}")
             return None

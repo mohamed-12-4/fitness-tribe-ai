@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import List, Dict, Optional
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Dict, Optional, Union
 
 
 # Define ProfileData model
@@ -13,7 +13,7 @@ class ProfileData(BaseModel):
         None  # e.g., ["vegetarian", "high protein, pescatarian, vegan"]
     )
     food_intolerance: Optional[List[str]] = None  # e.g. ["dairy", "gluten", "caffeine"]
-    duration_weeks: int
+    duration_days: int  # Changed from duration_weeks to duration_days
 
 
 class MacronutrientRange(BaseModel):
@@ -29,25 +29,54 @@ class DailyCaloriesRange(BaseModel):
 class Ingredient(BaseModel):
     ingredient: str
     quantity: str
-    calories: int
+    calories: Union[int, float]
+    
+    @field_validator('calories')
+    @classmethod
+    def convert_calories_to_int(cls, v):
+        """Convert float calories to int by rounding"""
+        if isinstance(v, float):
+            return round(v)
+        return v
 
 
 class MealOption(BaseModel):
     description: str
     ingredients: List[Ingredient]
-    total_calories: int
+    total_calories: Union[int, float]
     recipe: str
     suggested_brands: List[str]
+    
+    @field_validator('total_calories')
+    @classmethod
+    def convert_total_calories_to_int(cls, v):
+        """Convert float total_calories to int by rounding"""
+        if isinstance(v, float):
+            return round(v)
+        return v
 
 
-class MealPlan(BaseModel):
-    breakfast: List[MealOption]
-    lunch: List[MealOption]
-    dinner: List[MealOption]
-    snacks: List[MealOption]
+class DailyMealPlan(BaseModel):
+    day: int  # Day number (1, 2, 3, etc.)
+    date: str  # Date in YYYY-MM-DD format
+    breakfast: MealOption
+    lunch: MealOption
+    dinner: MealOption
+    snacks: List[MealOption]  # Can have multiple snacks per day
+    total_daily_calories: Union[int, float]
+    daily_macros: Dict[str, float]  # protein, carbs, fat in grams
+    
+    @field_validator('total_daily_calories')
+    @classmethod
+    def convert_daily_calories_to_int(cls, v):
+        """Convert float total_daily_calories to int by rounding"""
+        if isinstance(v, float):
+            return round(v)
+        return v
 
 
 class NutritionPlan(BaseModel):
     daily_calories_range: DailyCaloriesRange
     macronutrients_range: Dict[str, MacronutrientRange]
-    meal_plan: MealPlan
+    daily_meal_plans: List[DailyMealPlan]  # List of daily plans
+    total_days: int

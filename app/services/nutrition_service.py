@@ -3,13 +3,14 @@ from app.schemas.nutrition import (
     ProfileData,
     NutritionPlan,
     MealOption,
-    MealPlan,
+    DailyMealPlan,
     DailyCaloriesRange,
     MacronutrientRange,
 )
 from fastapi import HTTPException
 import json
 import logging
+from datetime import datetime, timedelta
 
 
 def clean_response_text(response_text: str) -> str:
@@ -45,20 +46,42 @@ def generate_nutrition_plan(profile_data: ProfileData) -> NutritionPlan:
             for k, v in result["macronutrients_range"].items()
         }
 
-        def parse_meal_options(meal_data):
-            return [MealOption(**meal) for meal in meal_data]
+        def parse_meal_option(meal_data):
+            return MealOption(**meal_data)
 
-        meal_plan = MealPlan(
-            breakfast=parse_meal_options(result["meal_plan"]["breakfast"]),
-            lunch=parse_meal_options(result["meal_plan"]["lunch"]),
-            dinner=parse_meal_options(result["meal_plan"]["dinner"]),
-            snacks=parse_meal_options(result["meal_plan"]["snacks"]),
-        )
+        # Parse daily meal plans
+        daily_meal_plans = []
+        start_date = datetime.now().date()
+        
+        for i, daily_plan_data in enumerate(result.get("daily_meal_plans", [])):
+            # Add actual dates to the daily plans
+            plan_date = start_date + timedelta(days=i)
+            daily_plan_data['date'] = plan_date.strftime('%Y-%m-%d')
+            daily_plan_data['day'] = i + 1
+            
+            # Parse meal options for this day
+            breakfast = parse_meal_option(daily_plan_data["breakfast"])
+            lunch = parse_meal_option(daily_plan_data["lunch"])
+            dinner = parse_meal_option(daily_plan_data["dinner"])
+            snacks = [parse_meal_option(snack) for snack in daily_plan_data["snacks"]]
+            
+            daily_meal_plan = DailyMealPlan(
+                day=daily_plan_data["day"],
+                date=daily_plan_data["date"],
+                breakfast=breakfast,
+                lunch=lunch,
+                dinner=dinner,
+                snacks=snacks,
+                total_daily_calories=daily_plan_data.get("total_daily_calories", 0),
+                daily_macros=daily_plan_data.get("daily_macros", {})
+            )
+            daily_meal_plans.append(daily_meal_plan)
 
         return NutritionPlan(
             daily_calories_range=daily_calories_range,
             macronutrients_range=macronutrients_range,
-            meal_plan=meal_plan,
+            daily_meal_plans=daily_meal_plans,
+            total_days=result.get("total_days", len(daily_meal_plans))
         )
 
     except Exception as e:
