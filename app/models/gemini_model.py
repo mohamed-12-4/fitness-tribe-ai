@@ -67,14 +67,27 @@ class GeminiModel:
     @staticmethod
     def analyze_meal(image_data):
         prompt = (
-            "Analyze the following meal image and identify all visible food items. "
-            "For each food item, provide:\n"
-            "1. The name of the food item\n"
-            "2. Estimated portion size\n"
-            "3. Your best estimate of calories\n\n"
+            "Analyze the following meal image and identify the main dish/meal. "
+            "Provide detailed nutritional analysis including:\n"
+            "1. The overall name/description of the meal\n"
+            "2. Total calories for the entire meal\n"
+            "3. Calories breakdown per visible ingredient\n"
+            "4. Total protein in grams\n"
+            "5. Total carbohydrates in grams\n"
+            "6. Total fats in grams\n\n"
+            "All nutritional values should be whole numbers (no decimals).\n\n"
             "Respond in the following JSON format: "
-            '{ "identified_foods": [{"name": "<food name>", "portion": "<estimated portion>", "estimated_calories": <calories>}], '
-            '"total_estimated_calories": <total>, "confidence_level": "<high/medium/low>" }'
+            '{\n'
+            '  "food_name": "<descriptive name of the meal>",\n'
+            '  "total_calories": <total_calories_as_whole_number>,\n'
+            '  "calories_per_ingredient": {\n'
+            '    "<ingredient1>": <calories_as_whole_number>,\n'
+            '    "<ingredient2>": <calories_as_whole_number>\n'
+            '  },\n'
+            '  "total_protein": <protein_grams_as_whole_number>,\n'
+            '  "total_carbohydrates": <carbs_grams_as_whole_number>,\n'
+            '  "total_fats": <fats_grams_as_whole_number>\n'
+            '}'
         )
 
         try:
@@ -90,34 +103,30 @@ class GeminiModel:
             gemini_result = response.text
             logging.info(f"Output Text (Analyze Meal): {gemini_result}")
 
-            # Enhance with Open Food Facts data
+            # Try to parse and enhance with Open Food Facts data
             try:
                 parsed_result = json.loads(gemini_result)
-                identified_foods = parsed_result.get('identified_foods', [])
                 
-                enhanced_foods = []
-                for food_item in identified_foods:
-                    food_name = food_item.get('name', '')
-                    nutrition_data = GeminiModel.search_food_info(food_name)
-                    
-                    enhanced_food = food_item.copy()
-                    if nutrition_data:
-                        enhanced_food['detailed_nutrition'] = nutrition_data
-                        if nutrition_data.get('calories_100g'):
-                            enhanced_food['verified_calories_per_100g'] = nutrition_data['calories_100g']
-                    
-                    enhanced_foods.append(enhanced_food)
+                # Enhance with Open Food Facts data for additional verification
+                food_name = parsed_result.get('food_name', '')
+                nutrition_data = GeminiModel.search_food_info(food_name)
                 
-                parsed_result['identified_foods'] = enhanced_foods
-                parsed_result['data_sources'] = ['Gemini Vision', 'Open Food Facts']
+                if nutrition_data:
+                    # Add additional nutrition info as metadata
+                    parsed_result['nutrition_verification'] = {
+                        'source': 'Open Food Facts',
+                        'verified_data': nutrition_data
+                    }
                 
                 return json.dumps(parsed_result)
                 
             except json.JSONDecodeError:
+                # If parsing fails, return original Gemini response
+                logging.warning("Failed to parse Gemini response as JSON, returning raw text")
                 return gemini_result
 
         except Exception as e:
-            logging.error(f"Error communicating with Gemini API: {str(e)}")
+            logging.error(f"Error analyzing meal: {str(e)}")
             return None
 
     @staticmethod

@@ -21,29 +21,54 @@ def analyze_meal(image_data: bytes) -> Meal:
         logging.info(f"Cleaned Result Text (Analyze Meal): {clean_result_text}")
 
         # Parse the cleaned JSON response
-        result = json.loads(clean_result_text)
+        try:
+            result = json.loads(clean_result_text)
+        except json.JSONDecodeError as e:
+            logging.error(f"JSON Decode Error: {str(e)}")
+            logging.error(f"Raw response: {clean_result_text}")
+            raise HTTPException(status_code=500, detail=f"Failed to parse AI response: {str(e)}")
+
+        # Extract all required fields
         food_name = result.get("food_name")
         total_calories = result.get("total_calories")
-        calories_per_ingredient = result.get("calories_per_ingredient")
-        logging.info(
-            f"Parsed Food Name: {food_name}, Total Calories: {total_calories}, Calories per Ingredient: {calories_per_ingredient}"
-        )
+        calories_per_ingredient = result.get("calories_per_ingredient", {})
+        total_protein = result.get("total_protein")
+        total_carbohydrates = result.get("total_carbohydrates")
+        total_fats = result.get("total_fats")
 
-        if food_name is None or total_calories is None or not calories_per_ingredient:
-            logging.error(
-                "Missing food name, total calories, or calories per ingredient in the response"
-            )
+        logging.info(f"Parsed - Food: {food_name}, Calories: {total_calories}, "
+                    f"Protein: {total_protein}, Carbs: {total_carbohydrates}, Fats: {total_fats}")
+
+        # Validate that all required fields are present
+        if not all([food_name is not None, total_calories is not None, 
+                   total_protein is not None, total_carbohydrates is not None, 
+                   total_fats is not None]):
+            missing_fields = []
+            if food_name is None: missing_fields.append("food_name")
+            if total_calories is None: missing_fields.append("total_calories")
+            if total_protein is None: missing_fields.append("total_protein")
+            if total_carbohydrates is None: missing_fields.append("total_carbohydrates")
+            if total_fats is None: missing_fields.append("total_fats")
+            
+            logging.error(f"Missing required fields: {missing_fields}")
             raise HTTPException(
                 status_code=500,
-                detail="Missing food name, total calories, or calories per ingredient in the response",
+                detail=f"Missing required fields in AI response: {', '.join(missing_fields)}"
             )
 
+        # Create and return Meal object (field validators will handle type conversion)
+        return Meal(
+            food_name=food_name,
+            total_calories=total_calories,
+            calories_per_ingredient=calories_per_ingredient,
+            total_protein=total_protein,
+            total_carbohydrates=total_carbohydrates,
+            total_fats=total_fats
+        )
+
+    except HTTPException:
+        # Re-raise HTTP exceptions without wrapping
+        raise
     except Exception as e:
         logging.error(f"Exception (Analyze Meal): {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-    return Meal(
-        food_name=food_name,
-        total_calories=total_calories,
-        calories_per_ingredient=calories_per_ingredient,
-    )
