@@ -9,6 +9,7 @@ import json
 import base64
 from typing import Dict, Optional, List
 from datetime import datetime
+from google.genai import types
 # Initialize the Gemini API key and the model
 load_dotenv()  # Try current directory first
 if not os.getenv("GEMINI_API_KEY"):
@@ -25,6 +26,15 @@ SERP_API_KEY = os.environ.get("SERP_API_KEY")
 # Initialize the newer genai client
 client = genai.Client(api_key=GEMINI_KEY)
 model_name = "gemini-2.5-flash"
+
+grounding_tool = types.Tool(
+    google_search=types.GoogleSearch()
+)
+
+# Configure generation settings
+config = types.GenerateContentConfig(
+    tools=[grounding_tool]
+)
 
 
 class GeminiModel:
@@ -79,7 +89,8 @@ class GeminiModel:
                             {"inline_data": {"mime_type": "image/jpeg", "data": image_b64}}
                         ]
                     }
-                ]
+                ],
+                config=config
             )
 
             # Log the response for debugging purposes
@@ -241,7 +252,8 @@ class GeminiModel:
         try:
             response = client.models.generate_content(
                 model=model_name,
-                contents=[{"parts": [{"text": prompt}]}]
+                contents=[{"parts": [{"text": prompt}]}],
+                config=config
             )
             
             logging.info(f"Full Gemini API Response: {response}")
