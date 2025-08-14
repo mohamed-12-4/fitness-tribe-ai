@@ -8,6 +8,7 @@ class Meal(BaseModel):
     food_name: str
     total_calories: Union[int, float]
     calories_per_ingredient: Dict[str, Union[int, float]]
+    sustainability: Dict[str, Union[str, int]]  # Environmental and nutritional impact
     total_protein: Union[int, float]
     total_carbohydrates: Union[int, float]
     total_fats: Union[int, float]

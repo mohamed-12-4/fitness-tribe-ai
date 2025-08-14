@@ -32,6 +32,7 @@ def analyze_meal(image_data: bytes) -> Meal:
         food_name = result.get("food_name")
         total_calories = result.get("total_calories")
         calories_per_ingredient = result.get("calories_per_ingredient", {})
+        sustainability = result.get("sustainability", {})
         total_protein = result.get("total_protein")
         total_carbohydrates = result.get("total_carbohydrates")
         total_fats = result.get("total_fats")
@@ -42,13 +43,14 @@ def analyze_meal(image_data: bytes) -> Meal:
         # Validate that all required fields are present
         if not all([food_name is not None, total_calories is not None, 
                    total_protein is not None, total_carbohydrates is not None, 
-                   total_fats is not None]):
+                   total_fats is not None, sustainability]):
             missing_fields = []
             if food_name is None: missing_fields.append("food_name")
             if total_calories is None: missing_fields.append("total_calories")
             if total_protein is None: missing_fields.append("total_protein")
             if total_carbohydrates is None: missing_fields.append("total_carbohydrates")
             if total_fats is None: missing_fields.append("total_fats")
+            if not sustainability: missing_fields.append("sustainability")
             
             logging.error(f"Missing required fields: {missing_fields}")
             raise HTTPException(
@@ -61,6 +63,7 @@ def analyze_meal(image_data: bytes) -> Meal:
             food_name=food_name,
             total_calories=total_calories,
             calories_per_ingredient=calories_per_ingredient,
+            sustainability=sustainability,
             total_protein=total_protein,
             total_carbohydrates=total_carbohydrates,
             total_fats=total_fats
