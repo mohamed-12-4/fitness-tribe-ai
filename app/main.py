@@ -3,7 +3,7 @@
 import logging
 from fastapi import FastAPI
 from dotenv import load_dotenv
-from app.routers import meals, workouts, nutrition
+from app.routers import meals, workouts, nutrition, recommendations
 
 # Load environment variables from .env file
 load_dotenv('../.env')
@@ -23,6 +23,7 @@ app = FastAPI(
 app.include_router(meals.router, prefix="/meals", tags=["meals"])
 app.include_router(workouts.router, prefix="/workout-plans", tags=["workout"])
 app.include_router(nutrition.router, prefix="/nutrition-plans", tags=["nutrition"])
+app.include_router(recommendations.router, prefix="/recommendations", tags=["recommendations"])
 
 
 # Define a root endpoint

@@ -33,7 +33,8 @@ grounding_tool = types.Tool(
 
 # Configure generation settings
 config = types.GenerateContentConfig(
-    tools=[grounding_tool]
+    tools=[grounding_tool],
+    system_instruction="""You're an AI assistant that uses scientific research to provide recommendations and plans for users that focus solely on sustainable living and wellbeing. Always look for things in a sustainable point of when generating and evaluating. """
 )
 
 
@@ -262,3 +263,58 @@ class GeminiModel:
         except Exception as e:
             logging.error(f"Error generating nutrition plan: {str(e)}")
             return None
+    
+    @staticmethod
+    def recommend_brands(product: str):
+        """
+        Recommend UAE-based brands or sustainable brands for a given product.
+        Returns brand recommendations with pricing, sustainability ratings, and descriptions.
+        """
+        prompt = (
+            f"Recommend UAE-based brands or sustainable brands for the product: '{product}'. DON'T INCLUDE THE SOURCES IN DESCRIPTION."
+            "Focus on brands that are:\n"
+            "1. Available in the UAE market\n"
+            "2. Focus on sustainability and environmental responsibility\n"
+            "3. Offer good value for money\n"
+            "4. Have a reputation for quality\n\n"
+            "Provide 3-5 brand recommendations. For each brand, include:\n"
+            "- Brand name\n"
+            "- Estimated price range (in AED)\n"
+            "- Sustainability rating (Excellent/Good/Fair)\n"
+            "- Brief description explaining why this brand is recommended\n\n"
+            "Focus on local UAE brands when possible, but also include international sustainable brands available in UAE.\n"
+            "Popular UAE brands to consider: Al Ain Farms, Bayara, Kibsons, Organic Foods & Cafe, etc.\n\n"
+            "Respond in valid JSON format with no additional explanation:\n\n"
+            "{\n"
+            "  \"brands\": [\n"
+            "    {\n"
+            "      \"name\": \"<brand name>\",\n"
+            "      \"price\": <float_average_price_in_AED>,\n"
+            "      \"sustainability_rating\": \"<Excellent|Good|Fair>\",\n"
+            "      \"description\": \"<brief description of why this brand is recommended>\"\n"
+            "    }\n"
+            "  ]\n"
+            "}"
+        )
+
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[{"parts": [{"text": prompt}]}],
+                config=config
+            )
+            
+            logging.info(f"Brand recommendation response: {response}")
+            
+            # Try to parse and return the response
+            try:
+                parsed_result = json.loads(response.text)
+                return json.dumps(parsed_result)
+            except json.JSONDecodeError:
+                logging.warning("Failed to parse brand recommendation response as JSON")
+                return response.text
+
+        except Exception as e:
+            logging.error(f"Error generating brand recommendations: {str(e)}")
+            return None
+
