@@ -34,7 +34,7 @@ grounding_tool = types.Tool(
 # Configure generation settings
 config = types.GenerateContentConfig(
     tools=[grounding_tool],
-    system_instruction="""You're an AI assistant that uses scientific research to provide recommendations and plans for users that focus solely on sustainable living and wellbeing. Always look for things in a sustainable point of when generating and evaluating. """
+    system_instruction="""You're an AI assistant that uses scientific research to provide recommendations and plans for users that focus solely on sustainable living and wellbeing. Always look for things in a sustainable point of when generating and evaluating. Use the search tool when possible and make sure your results are correct. Make sure to return the data in the expected format"""
 )
 
 
@@ -46,7 +46,7 @@ class GeminiModel:
             "Analyze the following meal image and identify the main dish/meal. "
             "Use your knowledge of nutrition to provide detailed nutritional analysis including:\n"
             "1. The overall name/description of the meal\n"
-            "2. Total calories for the entire meal\n"
+            "2. Total calories per serving (If it's a product, specify the serving size)\n"
             "3. Calories breakdown per visible ingredient\n"
             "4. Total protein in grams\n"
             "5. Total carbohydrates in grams\n"
@@ -55,8 +55,9 @@ class GeminiModel:
             "All nutritional values should be whole numbers (no decimals).\n"
             "ALL FIELDS ARE MANDATORY - do not omit any field from the response.\n\n"
             "Respond ONLY with valid JSON in the following exact format: "
+            "Make sure the values are correct, if in doubt use search tool"
             '{\n'
-            '  "food_name": "<descriptive name of the meal>",\n'
+            '  "food_name": "<descriptive name of the meal and serving size>",\n'
             '  "total_calories": <total_calories_as_whole_number>,\n'
             '  "sustainability": {\n'
             '    "environmental_impact": "<low|medium|high>",\n'
@@ -156,7 +157,8 @@ class GeminiModel:
         try:
             response = client.models.generate_content(
                 model=model_name,
-                contents=[{"parts": [{"text": prompt}]}]
+                contents=[{"parts": [{"text": prompt}]}],
+                config=config
             )
             
             # Log the response for debugging purposes
