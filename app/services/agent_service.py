@@ -23,9 +23,8 @@ def create_mcp_client():
     from langchain_mcp_adapters.client import MultiServerMCPClient
     client = MultiServerMCPClient({
         "fitness": {
-            "command": "python3",
-            "args": ["app/mcp/mcp_server.py"],
-            "transport": "stdio",
+            "url": "http://localhost:8001/mcp/" if not os.getenv("MCP_SERVER_URL") else os.getenv("MCP_SERVER_URL"),
+            "transport": "streamable_http",
         }
     })
     return client

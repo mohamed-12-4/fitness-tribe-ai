@@ -1,8 +1,10 @@
 from typing import Any
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+import asyncio
 import json
 import requests
 from mcp_utils import *
+import uvicorn
 # Initialize FastMCP server
 mcp = FastMCP("Ghiraas MCP")
 
@@ -39,4 +41,4 @@ def get_user_recent_workouts_tool(user_id: str, limit: int = 10) -> Any:
     return get_user_recent_workouts(user_id, limit)
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    mcp.run(transport="http", host="0.0.0.0", port=8001)
