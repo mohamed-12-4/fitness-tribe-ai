@@ -19,11 +19,19 @@ def initialize_firebase():
     """Initialize Firebase Admin SDK if not already initialized"""
     if not firebase_admin._apps:
         # Try to get Firebase credentials from environment or service account file
-        cred_path = 'app/ghiras-454ed-firebase-adminsdk-fbsvc-88ab2174dc.json'
+        try:
+            cred_path = 'app/ghiras-454ed-firebase-adminsdk-fbsvc-88ab2174dc.json'
         
-        cred = credentials.Certificate(cred_path)
+            cred = credentials.Certificate(cred_path)
 
-        firebase_admin.initialize_app(cred)
+            firebase_admin.initialize_app(cred)
+        except:
+            cred_path = '/etc/secrets/ghiras-454ed-firebase-adminsdk-fbsvc-88ab2174dc.json'
+        
+            cred = credentials.Certificate(cred_path)
+
+            firebase_admin.initialize_app(cred)
+
     
     return firestore.client()
 
@@ -144,5 +152,5 @@ def get_user_recent_workouts(user_id: str, limit: int = 10):
     
             
     except Exception:
-        raise Exception(f"Error retrieving workouts for user {user_id}: {str(e)}. Fallback also failed")
+        raise Exception(f"Error retrieving workouts for user {user_id}:")
 
