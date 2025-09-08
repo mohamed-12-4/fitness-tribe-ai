@@ -112,3 +112,7 @@ ENV/
 
 # Jupyter Notebook
 .ipynb_checkpoints/
+
+
+# Firebase file
+/app/ghiras-454ed-firebase-adminsdk-fbsvc-88ab2174dc.json

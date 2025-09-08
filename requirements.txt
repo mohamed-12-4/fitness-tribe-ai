@@ -10,3 +10,8 @@ python-multipart
 pillow
 pre-commit
 google-genai
+mcp[cli]
+langgraph
+langchain-mcp-adapters
+langchain-google-genai
+firebase-admin

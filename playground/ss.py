@@ -2,7 +2,9 @@
 
 from pydantic import BaseModel
 from typing import List, Optional
-
+import sys
+sys.path.append('/home/mohamed/Code/fitness-tribe-ai')
+from app.schemas.nutrition import NutritionPlan
 
 class ProfileData(BaseModel):
     weight: float  # in kilograms
@@ -15,7 +17,7 @@ class ProfileData(BaseModel):
 
 
 class Exercise(BaseModel):
-    exercise_id: str = None
+    exercise_id: str
     name: str
     sets: int
     reps: str  # could also be 'as many as possible'
@@ -41,3 +43,7 @@ class WorkoutPlan(BaseModel):
 class ExerciseResponse(BaseModel):
     text: str  # All text data not related to the generation
     data: Optional[WorkoutPlan]
+
+class NutritionResponse(BaseModel):
+    text: str  # All text data not related to the generation
+    data: Optional[NutritionPlan]
