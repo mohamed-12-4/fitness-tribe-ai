@@ -120,6 +120,7 @@ user_id you can use to get the user profile and preferences: {user_id if user_id
 11. For any recommendations or advices, make sure they are suitable for users in UAE, considering local dietary habits and available food options.
 12. Focus on sustainability aspects in nutrition, such as recommending plant-based options, reducing food waste, and considering environmental impacts of food choices.
 13. If the user asks to log a meal or food item, return it's nutrition information in the data section with the meal type as well (breakfast, lunch, dinner, snack). 
+14. If the request is about analyzing previous meals or food logs, use the user_id to get their food logs and provide insights based on that. And in that case return the data as null
 Response format:
 - text: Include your reasoning, explanations, and any additional context
 - data: The complete meal plan OR meal logged information (or null for general questions or recommendations)
@@ -244,6 +245,7 @@ async def handle_general_request(llm, tools, user_message: str, user_id: str = N
     Also you have access to the user_id if provided: {user_id if user_id else "No user_id provided"}
     you can use the user_id to get the user profile and preferences if needed to tailor your response.
     Also note that the units used in the user profile are in metric system (kg, cm, etc). Make sure you answer accordingly. And explain your answers if needed, specially for calculating things.
+    You might be asked questions about sleep analysis as well. use the user_id to get their sleep sessions and provide insights based on that. 
     Return in this format:
     text: all the text and information that the AI will return to the user
     data: Make it null always as this is a general question
