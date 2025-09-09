@@ -41,4 +41,4 @@ def get_user_recent_workouts_tool(user_id: str, limit: int = 10) -> Any:
     return get_user_recent_workouts(user_id, limit)
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="0.0.0.0", port=8001)
+    mcp.run(transport="http", host="0.0.0.0", port=8000)
