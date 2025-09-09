@@ -117,12 +117,12 @@ user_id you can use to get the user profile and preferences: {user_id if user_id
 8. For any questions related to nutrition, diet, or meal plans, ALWAYS respond with valid answers.
 9. Always use tools to get real nutrition information if needed before creating the meal plan (if asked to create one).
 10. If the request is a general nutrition question and not about generating a meal plan, set data to null and provide the answer in text.
-11. For any recommendations ir advices, make sure they are suitable for users in UAE, considering local dietary habits and available food options.
+11. For any recommendations or advices, make sure they are suitable for users in UAE, considering local dietary habits and available food options.
 12. Focus on sustainability aspects in nutrition, such as recommending plant-based options, reducing food waste, and considering environmental impacts of food choices.
-
+13. If the user asks to log a meal or food item, return it's nutrition information in the data section with the meal type as well (breakfast, lunch, dinner, snack). 
 Response format:
 - text: Include your reasoning, explanations, and any additional context
-- data: The complete meal plan following the MealPlan schema (or null for general questions or recommendations)
+- data: The complete meal plan OR meal logged information (or null for general questions or recommendations)
 
 Always use the appropriate tool based on the user's request."""
 
@@ -151,6 +151,7 @@ Based on the following agent response, create a structured output with:
 
 IMPORTANT: Respond ONLY with valid JSON format. Do NOT include any markdown formatting, code blocks, or additional explanation. Do NOT wrap the response in ```json``` blocks.
 
+IF MEAL GENERATION IS REQUESTED AND DATA IS NOT NULL (CONTAINS A MEAL PLAN)
 {{"text": "<summary text>",
 "data": <If needed only for generation responses> {{
     "daily_calories_range": {{"min": <min calories>, "max": <max calories>}},
@@ -183,6 +184,16 @@ IMPORTANT: Respond ONLY with valid JSON format. Do NOT include any markdown form
     ],
     "total_days": <number_of_days>
 }}}}
+
+IF MEAL LOGGING IS REQUESTED AND DATA IS NOT NULL (CONTAINS A MEAL LOGGED INFORMATION)
+{{"text": "<summary text>",
+"data": <If needed only for meal logging responses> {{
+    "meal_type": "<breakfast/lunch/dinner/snack>",
+    "description": "<meal description>",
+    "calories": <whole_number_calories>,
+    "macronutrients": {{"protein": <grams>, "carbohydrates": <grams>, "fat": <grams>}},
+    }}
+    }}
 
 Agent response:
 {final_message}
